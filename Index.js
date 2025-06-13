@@ -1,76 +1,39 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
-const AgarioClient = require('./lib/agario-client'); // tu cliente personalizado
+const Discord = require('discord.js');
+const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
+const TOKEN = process.env.DISCORD_TOKEN;
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+client.on('ready', () => {
+  console.log(`Bot listo: ${client.user.tag}`);
 });
 
-const PREFIX = '!';
-const BOT_NAME = 'Bσм.ioz#Live1k🔴'; // El nombre que quieres para los bots
-
-client.once('ready', () => {
-  console.log('Bot listo!');
-});
-
-client.on('messageCreate', async (message) => {
+client.on('messageCreate', async message => {
   if (message.author.bot) return;
 
-  if (!message.content.startsWith(PREFIX)) return;
+  const prefix = '!';
+  if (!message.content.startsWith(prefix)) return;
 
-  const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
   if (command === 'ping') {
-    message.channel.send('Pong!');
-  } 
-  else if (command === 'bots') {
-    if (args.length < 3) {
+    message.channel.send('pong!');
+  }
+
+  if (command === 'bots') {
+    if (args.length !== 3) {
       return message.channel.send('Uso correcto: `!bots <código_party> <región> <modo>`');
     }
+    const [partyCode, region, mode] = args;
 
-    const partyCode = args[0];
-    const region = args[1];
-    const mode = args[2].toLowerCase();
-
-    const validModes = ['seguir', 'alimentar', 'dividir', 'burst'];
-
-    if (!validModes.includes(mode)) {
-      return message.channel.send('Modo inválido. Usa: `seguir`, `alimentar`, `dividir` o `burst`');
+    // Valida modo (solo 'seguir' y 'burst' en este ejemplo)
+    if (!['seguir', 'burst'].includes(mode.toLowerCase())) {
+      return message.channel.send('Modo inválido. Usa: `seguir` o `burst`');
     }
 
-    message.channel.send(`Enviando bots en party ${partyCode} región ${region} modo ${mode}...`);
-
-    for (let i = 0; i < 28; i++) {
-      const bot = new AgarioClient({
-        partyCode,
-        region,
-        nick: BOT_NAME,
-      });
-
-      bot.connect();
-
-      bot.on('connected', () => {
-        if (mode === 'seguir' || mode === 'burst') {
-          bot.followPlayer(message.author.username);
-        }
-        if (mode === 'alimentar' || mode === 'burst') {
-          bot.startFeeding();
-        }
-        if (mode === 'dividir' || mode === 'burst') {
-          bot.startSplitting();
-        }
-      });
-
-      bot.on('disconnected', () => {
-        console.log(`Bot ${i} desconectado.`);
-      });
-    }
+    // Aquí debes poner la lógica para iniciar los bots con esos parámetros
+    // Por ahora solo responderemos que recibió bien el comando
+    return message.channel.send(`Iniciando bots en party ${partyCode}, región ${region}, modo ${mode}`);
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(TOKEN);
