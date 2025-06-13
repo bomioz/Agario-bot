@@ -1,60 +1,76 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const AgarioClient = require('./lib/agario-client'); // Asegúrate de tener el cliente en ./lib
 require('dotenv').config();
-
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const OWNER_NICKNAME = 'Bσм.ioz#Live1k🔴';
+const { Client, GatewayIntentBits } = require('discord.js');
+const AgarioClient = require('./lib/agario-client'); // tu cliente personalizado
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
+const PREFIX = '!';
+const BOT_NAME = 'Bσм.ioz#Live1k🔴'; // El nombre que quieres para los bots
+
 client.once('ready', () => {
-  console.log(`✅ Bot conectado como ${client.user.tag}`);
+  console.log('Bot listo!');
 });
 
 client.on('messageCreate', async (message) => {
-  if (!message.content.startsWith('!bots')) return;
+  if (message.author.bot) return;
 
-  const args = message.content.split(' ');
-  if (args.length < 4) {
-    return message.channel.send('Uso correcto: `!bots <código_party> <región> <modo>`');
+  if (!message.content.startsWith(PREFIX)) return;
+
+  const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  if (command === 'ping') {
+    message.channel.send('Pong!');
+  } 
+  else if (command === 'bots') {
+    if (args.length < 3) {
+      return message.channel.send('Uso correcto: `!bots <código_party> <región> <modo>`');
+    }
+
+    const partyCode = args[0];
+    const region = args[1];
+    const mode = args[2].toLowerCase();
+
+    const validModes = ['seguir', 'alimentar', 'dividir', 'burst'];
+
+    if (!validModes.includes(mode)) {
+      return message.channel.send('Modo inválido. Usa: `seguir`, `alimentar`, `dividir` o `burst`');
+    }
+
+    message.channel.send(`Enviando bots en party ${partyCode} región ${region} modo ${mode}...`);
+
+    for (let i = 0; i < 28; i++) {
+      const bot = new AgarioClient({
+        partyCode,
+        region,
+        nick: BOT_NAME,
+      });
+
+      bot.connect();
+
+      bot.on('connected', () => {
+        if (mode === 'seguir' || mode === 'burst') {
+          bot.followPlayer(message.author.username);
+        }
+        if (mode === 'alimentar' || mode === 'burst') {
+          bot.startFeeding();
+        }
+        if (mode === 'dividir' || mode === 'burst') {
+          bot.startSplitting();
+        }
+      });
+
+      bot.on('disconnected', () => {
+        console.log(`Bot ${i} desconectado.`);
+      });
+    }
   }
-
-  const [_, partyCode, region, mode] = args;
-
-  if (mode !== 'seguir') {
-    return message.channel.send('Modo inválido. Usa: `seguir`');
-  }
-
-  for (let i = 0; i < 28; i++) {
-    conectarBot(partyCode, region);
-  }
-
-  message.channel.send(`🚀 Enviando 28 bots al party \`${partyCode}\` en región \`${region}\` en modo **seguir** a ${OWNER_NICKNAME}`);
 });
 
-function conectarBot(partyCode, region) {
-  const bot = new AgarioClient();
-  bot.debug = 0;
-  bot.nickname = '🔴';
-  bot.connect(`ws://${region}.agar.io:443`, partyCode);
-
-  bot.on('connected', () => {
-    console.log('✅ Bot conectado a la party');
-  });
-
-  bot.on('players', (players) => {
-    const owner = players.find(p => p.name === OWNER_NICKNAME && p.id !== bot.id);
-    if (owner) {
-      bot.setTarget(owner.x, owner.y);
-    }
-  });
-
-  bot.on('disconnect', () => {
-    console.log('❌ Bot desconectado, reintentando...');
-    setTimeout(() => conectarBot(partyCode, region), 2000);
-  });
-}
-
-client.login(DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
